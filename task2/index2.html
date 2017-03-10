@@ -1,0 +1,89 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>动态数据绑定（二）</title>
+</head>
+<body>
+  <script>
+  // 发布者模式
+  function PubSub() {
+    this.handlers = {}
+  }
+
+  PubSub.prototype = {
+    // 订阅者模式
+    on: function (eventType, handler) {
+      var self = this
+      if (!(eventType in self.handlers)) {
+        self.handlers[eventType] = []
+      }
+      self.handlers[eventType].push(handler)
+      return this
+    },
+    emit: function (eventType) {
+      var self = this
+      var handlerArgs = Array.prototype.slice.call(arguments, 1)
+      for (var i=0; i < self.handlers[eventType].length; i++) {
+        self.handlers[eventType][i].apply(self, handlerArgs)
+      }
+      return self
+    }
+  }
+
+  function Observer (data) {
+    this.data = data
+    this.walk(data)
+    this.subs = new PubSub()
+  }
+
+  let p = Observer.prototype
+
+  p.walk = function (obj) {
+    let val, _this = this
+    for (let key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        val = obj[key]
+        if (typeof val === 'object') {
+          new Observer(val)
+        }
+        _this.convert(key, val)
+      }
+    }
+  }
+
+  p.convert = function (key, val) {
+    var self = this
+    Object.defineProperty(self.data, key, {
+      enumerable: true,
+      configurable: true,
+      get: function () {
+        console.log('你访问了:' + key)
+        return val
+      },
+      set: function (newVal) {
+        console.log('你设置了:' + key)
+        if (newVal === val) return
+        val = newVal
+        self.subs.emit(key, val, newVal)
+      }
+    })
+  }
+
+  // watcher
+  p.$watch = function (attr, cb) {
+    this.subs.on(attr, cb)
+  }
+
+  let app = new Observer({
+    name: 'Marry',
+    age: 20
+  })
+
+  app.$watch('age', function(age) {
+    console.log(`我的年纪变了，现在已经是：${age}岁了`)
+  })
+
+  </script>
+</body>
+</html>

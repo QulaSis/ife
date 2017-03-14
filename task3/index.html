@@ -1,0 +1,98 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>动态数据绑定（三）</title>
+</head>
+<body>
+  <script>
+
+  function Observer (data) {
+    this.data = data
+    // 事件冒泡存储父级
+    this.$parent = Array.prototype.slice.call(arguments, 1)[0] || 'data'
+    this.walk(data)
+  }
+
+  let p = Observer.prototype
+
+  p.handlers = {}
+
+  p.walk = function (obj) {
+    let keyArr = Object.keys(obj)
+    for (let i = 0; i < keyArr.length; i++) {
+      var key = keyArr[i]
+      var val = obj[keyArr[i]]
+      if (val instanceof Object) {
+        new Observer(val, this.$parent + '.' + key)
+      } else {
+        this.convert(key, val, this.$parent)
+      }
+    }
+  }
+
+  p.convert = function (key, val, $parent) {
+    var self = this
+    Object.defineProperty(self.data, key, {
+      enumerable: true,
+      configurable: true,
+      get: function () {
+        console.log('你访问了:' + key)
+        return val
+      },
+      set: function (newVal) {
+        var allkey = $parent + '.' + key
+        console.log('你设置了:' + key + ',' + '新值为：' + newVal)
+        self.emit(allkey, newVal)
+        if (newVal instanceof Object) {
+          Observer(newVal, allkey)
+        }
+        val = newVal
+      }
+    })
+  }
+
+  // watcher
+  p.$watch = function (eventType, handler) {
+    this.on(eventType, handler)
+  }
+
+  p.emit = function (eventType) {
+    var self = this
+    if (eventType.indexOf('.') !== -1) {
+      var parent = eventType.split('.')
+      for (var i = 0; i < parent.length; i++) {
+        this.emit(parent[i])
+      }
+    }
+    var handlerArgs = Array.prototype.slice.call(arguments, 1)
+    if (this.handlers[eventType]) {
+      for (var i = 0; i < self.handlers[eventType].length; i++) {
+        self.handlers[eventType][i].apply(self, handlerArgs)
+      }
+    }
+    return self
+  }
+
+  p.on = function (eventType, handler) {
+    if (!this.handlers[eventType]) {
+      this.handlers[eventType] = []
+    }
+    this.handlers[eventType].push(handler)
+    return this
+  }
+
+  let app = new Observer({
+    name: {
+      firstName: 'Marry',
+      lastName: 'Smith'
+    },
+    age: 25
+  })
+  app.$watch('name', function(newName) {
+    console.log('我的姓名发生了变化，可能是姓氏变了，也可能是名字变了。')
+  })
+
+  </script>
+</body>
+</html>
